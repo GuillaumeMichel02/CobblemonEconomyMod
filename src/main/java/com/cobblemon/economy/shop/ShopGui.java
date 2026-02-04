@@ -575,20 +575,24 @@ public class ShopGui {
             return;
         }
 
-        // Inventory full check WIP (not working properly yet)
-        // // Check if inventory is full
-        // boolean inventoryFull = true;
-        // for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-        //     ItemStack slot = player.getInventory().getItem(i);
-        //     if (slot.isEmpty() || slot.getCount() < slot.getMaxStackSize()) {
-        //         inventoryFull = false;
-        //         break;
-        //     }
-        // }
-        // if (inventoryFull) {
-        //     player.sendSystemMessage(Component.translatable("cobblemon-economy.shop.inventory_full").withStyle(ChatFormatting.RED));
-        //     return;
-        // }
+        // Check if item can fit in inventory
+        int remainingToFit = resolved.quantity;
+        
+        for (int i = 0; i < player.getInventory().items.size(); i++) {
+            ItemStack slot = player.getInventory().items.get(i);
+            if (slot.isEmpty()) {
+                remainingToFit -= resolved.templateStack.getMaxStackSize();
+            }
+            else if (ItemStack.isSameItemSameComponents(slot, resolved.templateStack)) {
+                remainingToFit -= (slot.getMaxStackSize() - slot.getCount());
+            }
+            if (remainingToFit <= 0) break;
+        }
+
+        if (remainingToFit > 0) {
+            player.sendSystemMessage(Component.translatable("cobblemon-economy.shop.inventory_full").withStyle(ChatFormatting.RED));
+            return;
+        }
 
         BigDecimal price = BigDecimal.valueOf(resolved.price).multiply(BigDecimal.valueOf(resolved.quantity));
         boolean success = isPco ? economyManager.subtractPco(player.getUUID(), price) : economyManager.subtractBalance(player.getUUID(), price);
