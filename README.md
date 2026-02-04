@@ -11,12 +11,13 @@ Website: https://ryvexam.fr
 - Dynamic quantity selection in shops (middle click)
 - Item definitions support component syntax (enchantments, datapack items)
 - Loot crates via dropTable or Minecraft loot tables
+- **Command execution items** - sell commands instead of items (e.g., crate keys, effects, shoutouts)
 - Purchase limits per item with optional cooldowns
 - Auto-downloaded shopkeeper skins from server
 - Transaction logging to file
 - Capture, discovery, and battle rewards with multipliers
+- Fossil revival rewards for shiny/radiant/legendary/paradox Pokémon
 - Optional integrations: YAWP protection flag and Star Academy grading
-- Version enforcement to prevent mismatched client mods
 
 ## Commands
 Player:
@@ -37,6 +38,11 @@ Admin (permission level 2):
 Config path: `world/config/cobblemon-economy/config.json`
 Milestones path: `world/config/cobblemon-economy/milestone.json`
 
+Milestone rules:
+- File missing: defaults are generated.
+- Empty file: defaults are used and saved.
+- Keys are unique-capture counts (strings), values are rewards in PokeDollars.
+
 Global settings:
 - `startingBalance`
 - `startingPco`
@@ -47,6 +53,8 @@ Global settings:
 - `shinyMultiplier`
 - `legendaryMultiplier`
 - `paradoxMultiplier`
+- `enableProfiling` (logs slow operations when true)
+- `profilingThresholdMs` (minimum ms to log)
 
 Shop definition fields:
 - `title`
@@ -58,14 +66,27 @@ Shop definition fields:
 - `items`
 
 Item definition fields:
-- `id`
-- `name`
+- `type` - `"item"` (default) or `"command"`
+- `id` - Item ID (for `type: "item"`)
+- `name` - Display name
 - `price`
 - `nbt` (legacy NBT string)
 - `dropTable` (array of item ids)
 - `lootTable` (minecraft loot table id)
+- `components` (data components for items)
 - `buyLimit` (optional)
 - `buyCooldownMinutes` (optional, 0 means lifetime limit)
+- `command` - Command string for `type: "command"` (use `%player%` placeholder)
+- `displayItem` - Custom display configuration for command items:
+  - `material` - Item ID to display
+  - `displayname` - Custom name shown in shop
+  - `enchantEffect` - Boolean for enchantment glint
+
+Item limit rules:
+- Missing `buyLimit` or `buyLimit <= 0`: unlimited.
+- `buyLimit > 0` and missing `buyCooldownMinutes`: lifetime limit.
+- `buyLimit > 0` and `buyCooldownMinutes = 0`: lifetime limit.
+- `buyLimit > 0` and `buyCooldownMinutes > 0`: limit resets every N minutes.
 
 Example shop:
 ```json
@@ -87,6 +108,65 @@ Example shop:
 }
 ```
 
+Item limit only:
+```json
+{ "id": "cobblemon:rare_candy", "name": "Rare Candy", "price": 50, "buyLimit": 3, "buyCooldownMinutes": 1200 }
+```
+
+Item with components (booster example):
+```json
+{
+  "id": "academy:booster_pack",
+  "name": "Oui",
+  "price": 200,
+  "components": {
+    "academy:booster_pack": "\"base\""
+  }
+}
+```
+
+**Command execution item** (sells a command instead of an item):
+```json
+{
+  "type": "command",
+  "command": "crate key give vote 1 %player%",
+  "price": 100,
+  "buyLimit": 1,
+  "buyCooldownMinutes": 1440,
+  "displayItem": {
+    "material": "supplementaries:key",
+    "displayname": "Vote Crate Key",
+    "enchantEffect": true
+  }
+}
+```
+
+**Mixed shop example** (items + loot tables + commands):
+```json
+{
+  "shops": {
+    "mixed_shop": {
+      "title": "MIXED SHOP",
+      "currency": "POKE",
+      "items": [
+        { "id": "cobblemon:poke_ball", "name": "Poké Ball", "price": 200 },
+        { "id": "minecraft:chest", "name": "Dungeon Loot", "price": 1000, "lootTable": "minecraft:chests/simple_dungeon" },
+        {
+          "type": "command",
+          "command": "effect give %player% minecraft:regeneration 300 1",
+          "price": 300,
+          "displayItem": {
+            "material": "minecraft:potion",
+            "displayname": "Regeneration Potion (5min)",
+            "enchantEffect": true
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Skins
 - Place PNGs in `world/config/cobblemon-economy/skins/`.
 - Use `/eco skin <name>` to get a Skin Setter.
@@ -101,6 +181,20 @@ Example shop:
 ## Integrations
 - YAWP: flag `melee-npc-cobeco` controls shopkeeper vulnerability.
 - Star Academy: optional grading integration when the `academy` mod is present.
+
+## Placeholders (Placeholder API)
+If `placeholder-api` is installed, Cobblemon Economy exposes balance placeholders for tablists/scoreboards.
+Use the placeholder format required by your tablist plugin (often `%namespace:placeholder%` or `{namespace:placeholder}`).
+
+Available placeholders (recommended namespace: `cobeco`):
+- `cobeco:balance`
+- `cobeco:balance_symbol`
+- `cobeco:pco`
+- `cobeco:pco_symbol`
+
+Alternate namespaces also registered for compatibility:
+- `cobblemon_economy:*`
+- `cobblemon-economy:*`
 
 ## Build
 ```bash
